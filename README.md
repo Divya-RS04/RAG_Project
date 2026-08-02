@@ -82,39 +82,3 @@ FAISS finds the most relevant document chunks.
 
 The retrieved context and user question are passed to Google's FLAN-T5 model, which generates the final answer.
 
----
-
-## 🧠 RAG Workflow
-
-```
-Knowledge File
-       │
-       ▼
-Text Splitter
-       │
-       ▼
-Sentence Transformer
-       │
-       ▼
-Embeddings
-       │
-       ▼
-FAISS Vector Database
-       │
-       ▼
-User Question
-       │
-       ▼
-Query Embedding
-       │
-       ▼
-Similarity Search
-       │
-       ▼
-Relevant Chunks
-       │
-       ▼
-FLAN-T5
-       │
-       ▼
-Generated Answer
