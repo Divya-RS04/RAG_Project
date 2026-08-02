@@ -1,111 +1,121 @@
-import os
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+import streamlit as st
+from rag_engine import answer_question
 
-# Load our document
-with open("my_knowledge.txt") as f:
-    knowledge_text = f.read()
+# -------------------- PAGE CONFIG --------------------
 
-# 1. Initialize the Text Splitter
-# This splitter is smart. It tries to split on paragraphs ("\n\n"),
-# then newlines ("\n"), then spaces (" "), to keep semantically
-# related text together as much as possible.
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=300,  # Max size of a chunk
-    chunk_overlap=50, # Overlap to maintain context between chunks
-    length_function=len
+st.set_page_config(
+    page_title="AI Knowledge Assistant",
+    page_icon="🤖",
+    layout="wide"
 )
 
-# 2. Create the chunks
-chunks = text_splitter.split_text(knowledge_text)
-print(f"We have {len(chunks)} chunks:")
-for i, chunk in enumerate(chunks):
-    print(f"--- Chunk {i+1} ---\n{chunk}\n")
+# -------------------- CUSTOM CSS --------------------
 
-from sentence_transformers import SentenceTransformer
+st.markdown("""
+<style>
 
-# 1. Load the embedding model
-# 'all-MiniLM-L6-v2' is a fantastic, fast, and small model.
-# It runs 100% on your local machine.
-model = SentenceTransformer('all-MiniLM-L6-v2')
+.main{
+    padding-top:2rem;
+}
 
-# 2. Embed all our chunks
-# This will take a moment as it "reads" and "understands" each chunk.
-chunk_embeddings = model.encode(chunks)
+.stChatMessage{
+    border-radius:15px;
+    padding:15px;
+}
 
-print(f"Shape of our embeddings: {chunk_embeddings.shape}")
+div[data-testid="stSidebar"]{
+    background-color:#0E1117;
+}
 
-import faiss
-import numpy as np
+div[data-testid="stSidebar"] *{
+    color:white;
+}
 
-# Get the dimension of our vectors (e.g., 384)
-d = chunk_embeddings.shape[1]
+footer{
+    visibility:hidden;
+}
 
-# 1. Create a FAISS index
-# IndexFlatL2 is the simplest, most basic index. It calculates
-# the exact distance (L2 distance) between our query and all vectors.
-index = faiss.IndexFlatL2(d)
+</style>
+""", unsafe_allow_html=True)
 
-# 2. Add our chunk embeddings to the index
-# We must convert to float32 for FAISS
-index.add(np.array(chunk_embeddings).astype('float32'))
+# -------------------- SIDEBAR --------------------
 
-print(f"FAISS index created with {index.ntotal} vectors.")
+with st.sidebar:
 
-from transformers import pipeline
+    st.title("🤖 AI Knowledge Assistant")
 
-# 1. Load a "Question-Answering" or "Text-Generation" model
-# We'll use a small, instruction-tuned model from Google.
-generator = pipeline('text2text-generation', model='google/flan-t5-small')
+    st.markdown("---")
 
-# --- This is our RAG pipeline function ---
-def answer_question(query):
-    # 1. RETRIEVE
-    # Embed the user's query
-    query_embedding = model.encode([query]).astype('float32')
+    st.markdown("### ⚙️ Model")
+    st.success("Google FLAN-T5")
 
-    # Search the FAISS index for the top k (e.g., k=2) most similar chunks
-    k = 2
-    distances, indices = index.search(query_embedding, k)
+    st.markdown("### 🧠 Embeddings")
+    st.success("all-MiniLM-L6-v2")
 
-    # Get the actual text chunks from our original 'chunks' list
-    retrieved_chunks = [chunks[i] for i in indices[0]]
-    context = "\n\n".join(retrieved_chunks)
-    # 2. AUGMENT
-    # This is the "magic prompt." We combine the retrieved context
-    # with the user's query.
-    prompt_template = f"""
-You are a helpful assistant.
+    st.markdown("### 📚 Vector Database")
+    st.success("FAISS")
 
-Answer ONLY from the context below.
-Give a short, direct answer in one or two sentences.
-Do not repeat the context.
-If the answer is not in the context, say:
-"I don't have that information."
+    st.markdown("---")
 
-Context:
-{context}
+    if st.button("🗑️ Clear Chat"):
+        st.session_state.messages=[]
 
-Question:
-{query}
+    st.markdown("---")
 
-Answer:
-"""
+    st.write("👨‍💻 Developed by")
+    st.write("**Divya R S**")
 
-    # 3. GENERATE
-    # Feed the augmented prompt to our generative model
-    answer = generator(
-    prompt_template,
-    max_new_tokens=50,
-    do_sample=False
-)
-    print(f"--- CONTEXT ---\n{context}\n")
-    return answer[0]['generated_text']
-while True:
-    query = input("\nAsk your question (type 'exit' to quit): ")
+# -------------------- TITLE --------------------
 
-    if query.lower() == "exit":
-        print("Goodbye!")
-        break
+st.title("🤖 AI Knowledge Assistant")
 
-    answer = answer_question(query)
-    print("\nAnswer:", answer)
+st.caption("Ask anything from your knowledge base")
+
+# -------------------- CHAT HISTORY --------------------
+
+if "messages" not in st.session_state:
+    st.session_state.messages=[]
+
+# Display old messages
+
+for message in st.session_state.messages:
+
+    with st.chat_message(message["role"]):
+
+        st.markdown(message["content"])
+
+# -------------------- USER INPUT --------------------
+
+prompt=st.chat_input("Type your question...")
+
+if prompt:
+
+    st.session_state.messages.append(
+        {
+            "role":"user",
+            "content":prompt
+        }
+    )
+
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.spinner("Searching knowledge base..."):
+
+        answer,context=answer_question(prompt)
+
+    with st.chat_message("assistant"):
+
+        st.markdown(answer)
+
+        with st.expander("📄 Retrieved Context"):
+
+            st.write(context)
+
+    st.session_state.messages.append(
+        {
+            "role":"assistant",
+            "content":answer
+        }
+    )
+
