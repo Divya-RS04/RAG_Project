@@ -56,10 +56,7 @@ The document is split into smaller chunks using LangChain's Recursive Character 
 ### Step 3 — Generate Embeddings
 
 Each chunk is converted into vector embeddings using the Sentence Transformer model:
-
-```
 all-MiniLM-L6-v2
-```
 
 ↓
 
