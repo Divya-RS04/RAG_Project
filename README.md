@@ -82,3 +82,5 @@ FAISS finds the most relevant document chunks.
 
 The retrieved context and user question are passed to Google's FLAN-T5 model, which generates the final answer.
 
+## To Run : streamlit run app.py
+
